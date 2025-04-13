@@ -1,0 +1,54 @@
+const express = require('express');
+const cors = require('cors');
+const multer = require('multer');
+const fetch = require('node-fetch');
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Set up multer for file upload
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Discord webhook URL
+const webhookURL = "https://discord.com/api/webhooks/1321545173435547699/VuhcRsVdVawyU23OopMsSU0O2oy7mkLAX8xh9_y_AU3F5xbhNqebraxObOwN7cNOU5JL";
+
+// POST route for checkout form submission
+app.post('/checkout', upload.single('file'), async (req, res) => {
+  const { nickname, platform, rank, harga, metode } = req.body;
+  const file = req.file;
+  
+  if (!nickname || !platform || !rank || !harga || !metode || !file) {
+    return res.status(400).json({ message: 'Semua field harus diisi' });
+  }
+
+  try {
+    // Kirim data ke Discord webhook
+    const formData = new FormData();
+    formData.append("file", file.buffer, { filename: file.originalname, contentType: file.mimetype });
+    formData.append("payload_json", JSON.stringify({
+      content: `**🛒 Checkout Minecraft 🛒**\n\n**Nickname:** ${nickname}\n**Platform:** ${platform}\n**Produk:** ${rank}\n**Harga:** ${harga}\n**Metode Pembayaran:** ${metode}\n\n📌 Untuk admin mohon berikan reaksi pada pembelian | tekan lama pada pesan dan klik emoji centang\nAdmin: Klik ✅ jika sudah ditangani, ❌ jika ditolak.`
+    }));
+
+    const response = await fetch(webhookURL, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      return res.status(500).json({ message: 'Gagal mengirim ke Discord webhook' });
+    }
+
+    res.status(200).json({ message: 'Bukti berhasil dikirim. Terima kasih!' });
+  } catch (error) {
+    res.status(500).json({ message: 'Terjadi kesalahan, coba lagi nanti' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
